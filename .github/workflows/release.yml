@@ -1,4 +1,4 @@
-name: Release-macOS-Intel
+name: Release
 
 on:
   push:
@@ -10,78 +10,163 @@ permissions:
 
 jobs:
   build:
-    name: macOS-x86_64
-    runs-on: macos-13
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x86_64
+            bin: meatshell.exe
+
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            name: linux-x86_64
+            bin: meatshell
+
+          - os: macos-14
+            target: aarch64-apple-darwin
+            name: macos-aarch64
+            bin: meatshell
+
+          - os: macos-13
+            target: x86_64-apple-darwin
+            name: macos-x86_64
+            bin: meatshell
 
     steps:
       - uses: actions/checkout@v4
 
-      # 安装 Rosetta 2（必须，用于 Intel 架构编译）
-      - name: Install Rosetta 2
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config cmake \
+            libfontconfig1-dev libfreetype6-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgtk-3-dev \
+            libudev-dev
+
+      # 🔥 修复 1：Intel Mac 必须安装 Rosetta 2
+      - name: Install Rosetta 2 (for x86_64 build)
+        if: matrix.target == 'x86_64-apple-darwin'
         run: softwareupdate --install-rosetta --agree-to-license
 
-      # 安装 Rust 工具链
+      # 🔥 修复 2：正确安装 Rust 目标
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-apple-darwin
+          targets: ${{ matrix.target }}
 
-      # 缓存加快构建
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
         with:
-          key: x86_64-apple-darwin
+          key: ${{ matrix.target }}
 
-      # 编译 Intel 版本
-      - name: Build release
+      # 🔥 修复 3：macos x86_64 必须用 cargo 跨架构编译
+      - name: Build (release)
         run: |
-          SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
-          cargo build --release --target x86_64-apple-darwin
+          if [ "${{ matrix.target }}" = "x86_64-apple-darwin" ]; then
+            SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
+            cargo build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
 
-      # 打包成 .app + 签名（可直接在 Mac 上运行）
-      - name: Package .app
+      - name: Build AppImage
+        if: matrix.name == 'linux-x86_64'
+        continue-on-error: true
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          set -eu
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          wget -q -O linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q -O linuxdeploy-plugin-appimage https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          chmod +x linuxdeploy linuxdeploy-plugin-appimage
+          install -Dm755 target/${{ matrix.target }}/release/meatshell AppDir/usr/bin/meatshell
+          install -Dm644 assets/meatshell.desktop AppDir/usr/share/applications/meatshell.desktop
+          install -Dm644 assets/icon@512.png AppDir/usr/share/icons/hicolor/512x512/apps/meatshell.png
+          ./linuxdeploy --appdir AppDir --output appimage
+          mv meatshell*.AppImage "meatshell-${VERSION}-linux-x86_64.AppImage"
+          echo "APPIMAGE=meatshell-${VERSION}-linux-x86_64.AppImage" >> "$GITHUB_ENV"
+
+      - name: Package
         shell: bash
         run: |
           set -eu
           VERSION="${GITHUB_REF_NAME:-dev}"
-          STAGE="meatshell-${VERSION}-macos-x86_64"
-          APP="meatshell.app"
-          CONTENTS="$APP/Contents"
+          STAGE="meatshell-${VERSION}-${{ matrix.name }}"
 
-          mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
-          cp "target/x86_64-apple-darwin/release/meatshell" "$CONTENTS/MacOS/"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            APP="meatshell.app"
+            CONTENTS="$APP/Contents"
+            mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
+            cp "target/${{ matrix.target }}/release/meatshell" "$CONTENTS/MacOS/"
 
-          # 生成图标
-          mkdir -p meatshell.iconset
-          sips -z 16 16 assets/icon@512.png --out meatshell.iconset/icon_16x16.png >/dev/null
-          sips -z 32 32 assets/icon@512.png --out meatshell.iconset/icon_32x32.png >/dev/null
-          sips -z 128 128 assets/icon@512.png --out meatshell.iconset/icon_128x128.png >/dev/null
-          sips -z 256 256 assets/icon@512.png --out meatshell.iconset/icon_256x256.png >/dev/null
-          sips -z 512 512 assets/icon@512.png --out meatshell.iconset/icon_512x512.png >/dev/null
-          iconutil -c icns meatshell.iconset -o "$CONTENTS/Resources/meatshell.icns"
+            mkdir -p meatshell.iconset
+            sips -z 16  16  assets/icon@512.png --out meatshell.iconset/icon_16x16.png >/dev/null
+            sips -z 32  32  assets/icon@512.png --out meatshell.iconset/icon_16x16@2x.png >/dev/null
+            sips -z 32  32  assets/icon@512.png --out meatshell.iconset/icon_32x32.png >/dev/null
+            sips -z 64  64  assets/icon@512.png --out meatshell.iconset/icon_32x32@2x.png >/dev/null
+            sips -z 128 128 assets/icon@512.png --out meatshell.iconset/icon_128x128.png >/dev/null
+            sips -z 256 256 assets/icon@512.png --out meatshell.iconset/icon_128x128@2x.png >/dev/null
+            sips -z 256 256 assets/icon@512.png --out meatshell.iconset/icon_256x256.png >/dev/null
+            sips -z 512 512 assets/icon@512.png --out meatshell.iconset/icon_256x256@2x.png >/dev/null
+            sips -z 512 512 assets/icon@512.png --out meatshell.iconset/icon_512x512.png >/dev/null
+            iconutil -c icns meatshell.iconset -o "$CONTENTS/Resources/meatshell.icns"
 
-          # 注入版本号
-          VERSION_NUM="${VERSION#v}"
-          sed "s/__VERSION__/${VERSION_NUM}/g" assets/Info.plist > "$CONTENTS/Info.plist"
+            VERSION_NUM="${VERSION#v}"
+            sed "s/__VERSION__/${VERSION_NUM}/g" assets/Info.plist > "$CONTENTS/Info.plist"
 
-          # 签名（解决 Mac “已损坏” 问题）
-          codesign --force --deep --sign - "$APP"
-          codesign --verify --verbose "$APP"
+            codesign --force --deep --sign - "$APP"
+            codesign --verify --verbose "$APP"
+            ditto -c -k --keepParent "$APP" "${STAGE}.zip"
+            echo "ASSET=${STAGE}.zip" >> "$GITHUB_ENV"
 
-          # 打包 zip
-          ditto -c -k --keepParent "$APP" "${STAGE}.zip"
-          echo "ASSET=${STAGE}.zip" >> "$GITHUB_ENV"
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            mkdir "$STAGE"
+            cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "$STAGE/"
+            cp README.md README.en.md CHANGELOG.md "$STAGE/" 2>/dev/null || true
+            7z a "${STAGE}.zip" "$STAGE" >/dev/null
+            echo "ASSET=${STAGE}.zip" >> "$GITHUB_ENV"
 
-      # 上传构建产物
-      - name: Upload artifact
+          else
+            mkdir "$STAGE"
+            cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "$STAGE/"
+            cp README.md README.en.md CHANGELOG.md "$STAGE/" 2>/dev/null || true
+            cp assets/meatshell.desktop assets/install-linux.sh assets/icon@512.png "$STAGE/" 2>/dev/null || true
+            tar -czf "${STAGE}.tar.gz" "$STAGE"
+            echo "ASSET=${STAGE}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-x86_64
+          name: ${{ matrix.name }}
           path: ${{ env.ASSET }}
 
-      # 推送到 GitHub Release
-      - name: Attach to Release
+      - name: Upload AppImage artifact
+        if: matrix.name == 'linux-x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64-appimage
+          path: ${{ env.APPIMAGE }}
+
+      - name: Attach to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ASSET }}
+          fail_on_unmatched_files: true
+
+      - name: Attach AppImage to GitHub Release
+        if: matrix.name == 'linux-x86_64' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APPIMAGE }}
+          fail_on_unmatched_files: true
