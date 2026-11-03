@@ -1,0 +1,31 @@
+[package]
+name = "meatshell-core"
+version = "0.1.0"
+edition = "2021"
+description = "OpenHarmony port skeleton of meatshell core (SSH/SFTP/telnet engine), built as a staticlib linked into the HAP NAPI module"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+# 与上游 meatshell 同源的核心栈，先挑代表性依赖做交叉编译冒烟：
+# 异步运行时 + SSH 协议 + 静态加密
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util", "net", "time", "fs"] }
+russh = "0.49"
+chacha20poly1305 = "0.10"
+zeroize = "1"
+
+# 开鸿 PC（KaihongOS / OpenHarmony）交叉编译配置：
+# 链接器直接用 DevEco NDK 自带的 ohos clang 包装器（内部已带 --sysroot 和 -D__MUSL__）
+[target.x86_64-unknown-linux-ohos]
+linker = "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native/llvm/bin/x86_64-unknown-linux-ohos-clang"
+
+[target.aarch64-unknown-linux-ohos]
+linker = "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native/llvm/bin/aarch64-unknown-linux-ohos-clang"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = "symbols"
+panic = "abort"
