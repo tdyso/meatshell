@@ -37,8 +37,14 @@ pub fn set_language(code: &str) {
 /// empty/`"en"` shortcut selects bundle index 0 — which would be `zh` when only
 /// the Chinese bundle exists.
 pub fn apply_to_slint() {
-    let lang = if is_en() { "en" } else { "zh" };
-    let _ = slint::select_bundled_translation(lang);
+    // [ohos-port] headless builds carry no Slint runtime; language state above
+    // is all a headless consumer needs. (Keeps `cargo build --features
+    // headless` free of GUI dependencies.)
+    #[cfg(not(feature = "headless"))]
+    {
+        let lang = if is_en() { "en" } else { "zh" };
+        let _ = slint::select_bundled_translation(lang);
+    }
 }
 
 /// Current language code, for persisting to config (`"zh"` / `"en"`).

@@ -1995,6 +1995,12 @@ async fn run_session(
                                         .await
                                 }
                                 ZmodemDirection::Upload => {
+                                    // [ohos-port] headless builds have no desktop file
+                                    // picker; rz upload auto-cancels (existing
+                                    // files.is_empty() branch below handles it).
+                                    #[cfg(feature = "headless")]
+                                    let files: Vec<std::path::PathBuf> = Vec::new();
+                                    #[cfg(not(feature = "headless"))]
                                     let files = tokio::task::spawn_blocking(|| {
                                         rfd::FileDialog::new()
                                             .set_title(t(
