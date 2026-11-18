@@ -821,8 +821,8 @@ export component InterfacePanel inherits Rectangle {
                 SettingRow {
                     label: root.lang-en ? "Installed fonts" : "已安装字体";
                     desc: root.lang-en
-                        ? "Install a TTF/OTF font in Windows, then restart meatshell to refresh this list."
-                        : "在 Windows 中安装 TTF/OTF 字体后，重启 meatshell 即可刷新字体列表。";
+                        ? "Install a TTF/OTF font in Windows, then restart khshell to refresh this list."
+                        : "在 Windows 中安装 TTF/OTF 字体后，重启 khshell 即可刷新字体列表。";
                     show-divider: false;
                     Rectangle { width: 1px; height: 1px; background: transparent; }
                 }
@@ -1533,8 +1533,8 @@ export component InterfacePanel inherits Rectangle {
                 Text {
                     text: root.renderer-restart-required
                         ? (root.lang-en
-                            ? "Restart MeatShell to apply the renderer change."
-                            : "重启 MeatShell 后渲染器设置才会生效。")
+                            ? "Restart khshell to apply the renderer change."
+                            : "重启 khshell 后渲染器设置才会生效。")
                         : (root.lang-en
                             ? (Theme.is-mac
                                 ? "CPU is the default renderer on macOS."
@@ -1901,8 +1901,8 @@ export component InterfacePanel inherits Rectangle {
                 SettingRow {
                     label: root.lang-en ? "Enable WebDAV sync" : "启用 WebDAV 同步";
                     desc: root.lang-en
-                        ? "Manual upload/download only; meatshell will not connect on startup."
-                        : "仅手动上传/下载;meatshell 启动时不会自动连接。";
+                        ? "Manual upload/download only; khshell will not connect on startup."
+                        : "仅手动上传/下载;khshell 启动时不会自动连接。";
                     show-divider: false;
                     Switch {
                         on: root.webdav-enabled;
@@ -2237,14 +2237,14 @@ export component InterfacePanel inherits Rectangle {
                 Text {
                     text: root.update-via-terminal
                         ? (root.lang-en
-                            ? "Updates are built from the AUR: MeatShell opens a terminal tab running paru, yay or makepkg. When it finishes, restart MeatShell."
-                            : "更新从 AUR 构建：MeatShell 会打开终端标签页运行 paru、yay 或 makepkg，完成后重启 MeatShell 即可。")
+                            ? "Updates are built from the AUR: khshell opens a terminal tab running paru, yay or makepkg. When it finishes, restart khshell."
+                            : "更新从 AUR 构建：khshell 会打开终端标签页运行 paru、yay 或 makepkg，完成后重启 khshell 即可。")
                         : root.update-install-supported
                         ? (root.lang-en
-                            ? "Downloads are verified before installation. Installing closes all windows and connections, then reopens MeatShell. Temporary packages are removed afterwards."
-                            : "安装前会校验下载文件。安装时关闭所有窗口和连接，完成后重新打开 MeatShell，并清理临时安装包。")
+                            ? "Downloads are verified before installation. Installing closes all windows and connections, then reopens khshell. Temporary packages are removed afterwards."
+                            : "安装前会校验下载文件。安装时关闭所有窗口和连接，完成后重新打开 khshell，并清理临时安装包。")
                         : (root.lang-en
-                            ? "This installation can't be updated from inside MeatShell; use the release page or your package manager."
+                            ? "This installation can't be updated from inside khshell; use the release page or your package manager."
                             : "此安装方式不支持在软件内更新，请通过发布页面或系统包管理器更新。");
                     color: Theme.text-muted;
                     font-size: Theme.fs-sm;

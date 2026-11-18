@@ -1,0 +1,36 @@
+khshell
+Copyright (c) 2026 khshell contributors
+
+This product is a derivative work of MeatShell
+(https://github.com/yituorou/meatshell), Copyright (c) 2026 meatshell
+contributors, licensed under the MIT License or the Apache License, Version 2.0.
+
+The combined work is distributed under the MIT License (see LICENSE); the
+Apache License, Version 2.0 text is provided in LICENSE-APACHE.
+
+Third-party components and licenses
+-----------------------------------
+
+* Slint (https://slint.dev), Copyright SixtyFPS GmbH.
+  Used under the Slint Royalty-free Desktop, Mobile, and Web Applications
+  License 2.0. Attribution is displayed in the in-app About dialog through the
+  AboutSlint widget. The license texts shipped with the Slint sources are kept
+  under vendor/i-slint-compiler/LICENSES/.
+
+* Twemoji (https://github.com/jdecked/twemoji), Copyright 2020 Twitter, Inc.
+  and other contributors. Licensed under CC BY 4.0.
+
+* Material Icons, Copyright Google LLC. Licensed under Apache License 2.0.
+
+* Cascadia Mono, Copyright Microsoft Corporation. Licensed under the SIL Open
+  Font License 1.1. The embedded copy is renamed "Meatshell Mono" as required
+  by the OFL reserved font name clause.
+
+* FreeRDP (https://github.com/FreeRDP/FreeRDP), Copyright the FreeRDP project
+  contributors. Licensed under Apache License 2.0. Only bundled in the Flatpak
+  build.
+
+* Rust crates: see Cargo.lock; each crate keeps its own license.
+
+Full third-party notices: THIRD_PARTY_NOTICES.md, also shipped inside the
+application package (rawfile/THIRD_PARTY_NOTICES.md).

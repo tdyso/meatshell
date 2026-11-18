@@ -10,3 +10,6 @@ Cargo.lock
 /opencode.jsonc
 /.qoder
 /docs/superpowers
+# OpenHarmony port: local build output (~4 GB) and agent workspace notes.
+/ohos/meatshell-slint/target
+/.trae

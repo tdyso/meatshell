@@ -21,11 +21,11 @@
 //! - `ms_tcp_probe(host, port, timeout_ms)`      异步 TCP 连通性探测
 
 use std::ffi::{c_char, CStr};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 // ———————— 上游引擎源码（零修改引用）————————
 
-#[path = "../../../src/config/mod.rs"]
+#[path = "config_facade.rs"]
 pub mod config;
 #[path = "../../../src/i18n/mod.rs"]
 pub mod i18n;
@@ -33,6 +33,8 @@ pub mod i18n;
 pub mod ssh;
 #[path = "../../../src/sftp/mod.rs"]
 pub mod sftp;
+#[path = "sftp_facade.rs"]
+pub mod sftp_facade;
 #[path = "../../../src/tunnel/mod.rs"]
 pub mod tunnel;
 #[path = "../../../src/terminal/headless.rs"]
@@ -41,23 +43,37 @@ pub mod terminal;
 // ———————— FFI ————————
 
 static SELFTEST_DETAIL: OnceLock<&'static str> = OnceLock::new();
-static LAST_ERR: OnceLock<String> = OnceLock::new();
+static LAST_ERR: Mutex<Option<String>> = Mutex::new(None);
+static SSH_OUTPUT: Mutex<Option<String>> = Mutex::new(None);
 
 fn set_detail(s: String) {
     let _ = SELFTEST_DETAIL.set(Box::leak(s.into_boxed_str()));
 }
 
 fn set_err(e: String) {
-    let _ = LAST_ERR.set(e);
+    if let Ok(mut g) = LAST_ERR.lock() {
+        *g = Some(e);
+    }
 }
 
-/// 返回最近一次 FFI 调用的错误详情（诊断用，进程生命周期内有效）。
+fn take_err() -> Option<String> {
+    LAST_ERR.lock().ok().and_then(|mut g| g.take())
+}
+
+/// 返回最近一次 FFI 调用的错误详情（诊断用）。
 #[no_mangle]
 pub extern "C" fn ms_last_error() -> *const c_char {
-    match LAST_ERR.get() {
-        Some(s) => s.as_ptr() as *const c_char,
+    match take_err() {
+        Some(s) => store_cstr(s),
         None => concat!("no error\0").as_ptr() as *const c_char,
     }
+}
+
+/// 进程内单例字符串仓库：把 String 变成 'static 指针（诊断用途，量小可控）。
+fn store_cstr(s: String) -> *const c_char {
+    let mut b = s.into_bytes();
+    b.push(0);
+    Box::leak(b.into_boxed_slice()).as_ptr() as *const c_char
 }
 
 /// 返回核心库版本号（静态字符串，调用方无需释放）。
@@ -170,5 +186,146 @@ pub unsafe extern "C" fn ms_tcp_probe(host: *const c_char, port: u16, timeout_ms
             set_err(format!("connect {}: timeout after {timeout_ms}ms", target_for_err));
             -1
         }
+    }
+}
+
+// ———————— SSH 真连（russh 公钥认证 + exec）———————
+
+struct TrustAllHandler;
+
+#[async_trait::async_trait]
+impl russh::client::Handler for TrustAllHandler {
+    type Error = russh::Error;
+
+    async fn check_server_key(
+        &mut self,
+        _server_public_key: &russh::keys::PublicKey,
+    ) -> Result<bool, Self::Error> {
+        // TODO(ohos-port): 接入上游 known_hosts 校验；骨架阶段先信任本地回环
+        Ok(true)
+    }
+}
+
+/// SSH 真连自检：连接 → 公钥认证 → exec 一条命令 → 抓取输出。
+/// 成功返回 0，输出经 `ms_ssh_output()` 取回；失败返回负值并用 `ms_last_error()` 取详情。
+///
+/// # Safety
+/// 四个指针参数都必须是合法 NUL 结尾 C 字符串。
+#[no_mangle]
+pub unsafe extern "C" fn ms_ssh_exec(
+    host: *const c_char,
+    port: u16,
+    user: *const c_char,
+    private_key_pem: *const c_char,
+    command: *const c_char,
+    timeout_ms: u32,
+) -> i32 {
+    let (host, user, pem, command) = {
+        let get = |p: *const c_char| -> Option<String> {
+            if p.is_null() {
+                None
+            } else {
+                CStr::from_ptr(p).to_str().ok().map(str::to_owned)
+            }
+        };
+        match (
+            get(host),
+            get(user),
+            get(private_key_pem),
+            get(command),
+        ) {
+            (Some(h), Some(u), Some(k), Some(c)) if !h.is_empty() && !u.is_empty() => (h, u, k, c),
+            _ => return -2,
+        }
+    };
+
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(_) => return -3,
+    };
+
+    let res = rt.block_on(async move {
+        let config = std::sync::Arc::new(russh::client::Config {
+            inactivity_timeout: Some(std::time::Duration::from_millis(
+                u64::from(timeout_ms).max(1) * 2,
+            )),
+            ..Default::default()
+        });
+
+        let mut session = match tokio::time::timeout(
+            std::time::Duration::from_millis(u64::from(timeout_ms).max(1)),
+            russh::client::connect(config, (host.as_str(), port), TrustAllHandler),
+        )
+        .await
+        {
+            Ok(r) => r.map_err(|e| format!("connect {host}:{port}: {e}"))?,
+            Err(_) => {
+                return Err(format!("connect {host}:{port}: timeout after {timeout_ms}ms"))
+            }
+        };
+
+        let key = russh::keys::decode_secret_key(&pem, None)
+            .map_err(|e| format!("decode private key: {e}"))?;
+
+        let key_with_hash = russh_keys::key::PrivateKeyWithHashAlg::new(
+            std::sync::Arc::new(key),
+            None,
+        )
+        .map_err(|e| format!("build key auth: {e}"))?;
+        let authed = session
+            .authenticate_publickey(&user, key_with_hash)
+            .await
+            .map_err(|e| format!("auth {user}@{host}: {e}"))?;
+        if !authed {
+            return Err(format!("auth {user}@{host}: public key rejected"));
+        }
+
+        let mut channel = session
+            .channel_open_session()
+            .await
+            .map_err(|e| format!("open channel: {e}"))?;
+        channel
+            .exec(true, command.as_bytes())
+            .await
+            .map_err(|e| format!("exec {command:?}: {e}"))?;
+
+        let mut buf = Vec::new();
+        loop {
+            match channel.wait().await {
+                Some(russh::ChannelMsg::Data { ref data }) => buf.extend_from_slice(data),
+                Some(russh::ChannelMsg::ExtendedData { ref data, .. }) => buf.extend_from_slice(data),
+                Some(russh::ChannelMsg::Close) | None => break,
+                _ => {}
+            }
+        }
+
+        let _ = session.disconnect(russh::Disconnect::ByApplication, "done", "en");
+
+        Ok(String::from_utf8_lossy(&buf).into_owned())
+    });
+
+    match res {
+        Ok(out) => {
+            if let Ok(mut g) = SSH_OUTPUT.lock() {
+                *g = Some(out);
+            }
+            0
+        }
+        Err(e) => {
+            set_err(e);
+            -1
+        }
+    }
+}
+
+/// 返回最近一次 `ms_ssh_exec` 的命令输出（成功时）。
+#[no_mangle]
+pub extern "C" fn ms_ssh_output() -> *const c_char {
+    match SSH_OUTPUT.lock().ok().and_then(|mut g| g.take()) {
+        Some(s) => store_cstr(s),
+        None => concat!("(no output)\0").as_ptr() as *const c_char,
     }
 }

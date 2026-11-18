@@ -6,7 +6,10 @@ description = "OpenHarmony port of the meatshell engine (SSH/SFTP/tunnel), inclu
 license = "MIT OR Apache-2.0"
 
 [lib]
-crate-type = ["staticlib"]
+# `rlib` so the OHOS shell crate (meatshell-slint) can depend on the engine and
+# emit a single Rust staticlib. Linking two independent Rust staticlibs into one
+# .so duplicates the Rust std symbols and fails with `duplicate symbol`.
+crate-type = ["staticlib", "rlib"]
 
 [features]
 default = ["headless"]

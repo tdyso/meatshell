@@ -31,7 +31,7 @@ import { EditorPane, EditorFindResult, EditorDoc } from "editor_pane.slint";
 import { InterfacePanel, OutputRuleItem, WslProfileInfo, CustomAgentInfo, UpdateMirrorRow, ColorThemeItem } from "interface_panel.slint";
 // Re-export so `slint::include_modules!` generates the detached Rust window types.
 export { ProcWindow, SystemInfoWindow, EditorWindow }
-import { ComboBox, SpinBox, LineEdit, Button, ScrollView, CheckBox, Palette } from "std-widgets.slint";
+import { ComboBox, SpinBox, LineEdit, Button, ScrollView, CheckBox, Palette, AboutSlint } from "std-widgets.slint";
 
 export { SessionInfo, LaunchItem, SessionDraft, JumpHop, TabInfo, SftpEntry, SftpTreeNode, TunnelInfo, QuickCmd, PortFwd, WslProfileInfo, CustomAgentInfo, UpdateMirrorRow, ThemePalette, ColorThemeItem }
 
@@ -457,7 +457,7 @@ component EditableShortcutRow inherits Rectangle {
 }
 
 export component AppWindow inherits Window {
-    title: "meatshell";
+    title: "khshell";
     icon: @image-url("../assets/icon.png");
     // Frameless when we draw our own title bar (#119); Rust sets custom-titlebar
     // true on Windows/Linux. Slint maps no-frame → winit set_decorations(false).
@@ -1558,7 +1558,7 @@ export component AppWindow inherits Window {
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: "meatshell";
+                            text: "khshell";
                             color: Theme.text-secondary;
                             font-size: Theme.fs-sm;
                         }
@@ -2138,7 +2138,11 @@ export component AppWindow inherits Window {
                 // Content area swaps based on active tab kind.
                 Rectangle {
                     vertical-stretch: 1;
-                    background: Theme.bg-root;
+                    // With the welcome list docked as a sidebar the empty centre
+                    // is the product hero over the wallpaper (0.8.2 startup), so
+                    // it must not paint an opaque background over it.
+                    background: (pane.tabs.length == 0 && root.welcome-as-sidebar)
+                        ? transparent : Theme.bg-root;
 
                     // Empty pane outside welcome-sidebar mode: keep a small hint for
                     // rare empty panes, but do not cover the wallpaper when the
@@ -2154,6 +2158,49 @@ export component AppWindow inherits Window {
                             font-size: Theme.fs-sm;
                             horizontal-alignment: center;
                             vertical-alignment: center;
+                        }
+                    }
+
+                    // Empty welcome-sidebar pane: the centred product mark shown
+                    // before the first session is opened (matches the 0.8.2
+                    // startup screen, where the quick-connect list only lives in
+                    // the left sidebar).
+                    if pane.tabs.length == 0 && root.welcome-as-sidebar : VerticalLayout {
+                        width: parent.width;
+                        height: parent.height;
+                        alignment: center;
+                        spacing: 10px;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 12px;
+                            Rectangle {
+                                width: 46px;
+                                height: 46px;
+                                border-radius: 11px;
+                                background: Theme.accent;
+                                Text {
+                                    text: ">_";
+                                    color: #ffffff;
+                                    font-size: 22px;
+                                    font-weight: 700;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            Text {
+                                text: "khshell";
+                                color: Theme.text-primary;
+                                font-size: 34px;
+                                font-weight: 800;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text {
+                            text: @tr("A lightweight and efficient Rust + Slint SSH client");
+                            color: Theme.text-muted;
+                            font-size: Theme.fs-md;
+                            horizontal-alignment: center;
                         }
                     }
 
@@ -4302,7 +4349,7 @@ export component AppWindow inherits Window {
                 padding: 18px;
                 spacing: 12px;
                 Text {
-                    text: root.lang-en ? "Close meatshell?" : "确定关闭 meatshell?";
+                    text: root.lang-en ? "Close khshell?" : "确定关闭 khshell?";
                     color: Theme.text-primary; font-size: Theme.fs-lg; font-weight: 700;
                 }
                 Text {
@@ -4603,7 +4650,7 @@ export component AppWindow inherits Window {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             width: 520px;
-            height: 188px;
+            height: 330px;
             background: Theme.popup-bg;
             border-radius: Theme.radius-lg;
             border-width: 1px;
@@ -4652,7 +4699,7 @@ export component AppWindow inherits Window {
                         alignment: start;
                         spacing: 8px;
                         Text {
-                            text: "meatshell";
+                            text: "khshell";
                             color: Theme.text-primary;
                             font-size: 22px;
                             font-weight: 700;
@@ -4667,7 +4714,9 @@ export component AppWindow inherits Window {
                     }
 
                     Text {
-                        text: @tr("meatshell — a lightweight Rust + Slint SSH client by 'lil meatball'");
+                        text: root.lang-en
+                            ? "khshell — a lightweight Rust + Slint SSH client. Based on MeatShell."
+                            : "khshell — 基于 Rust + Slint 的轻量 SSH 客户端（源自 MeatShell）";
                         color: Theme.text-secondary;
                         font-size: Theme.fs-sm;
                         wrap: word-wrap;
@@ -4678,7 +4727,7 @@ export component AppWindow inherits Window {
                         alignment: start;
                         spacing: 6px;
                         Text {
-                            text: @tr("Open source");
+                            text: root.lang-en ? "Upstream" : "上游项目";
                             color: Theme.text-muted;
                             font-size: Theme.fs-sm;
                             vertical-alignment: center;
@@ -4706,6 +4755,21 @@ export component AppWindow inherits Window {
                         text: "MIT / Apache-2.0";
                         color: Theme.text-muted;
                         font-size: Theme.fs-xs;
+                    }
+
+                    // Required attribution for the Slint Royalty-free 2.0 licence:
+                    // the official AboutSlint widget (logo + version + slint.dev link).
+                    Rectangle {
+                        width: 100%;
+                        height: 96px;
+                        clip: true;
+                        AboutSlint { width: 100%; height: 100%; }
+                    }
+                    Text {
+                        text: "Slint (Royalty-free 2.0) · Twemoji (CC BY 4.0) · Material Icons (Apache 2.0) · Cascadia Mono (OFL 1.1)";
+                        color: Theme.text-muted;
+                        font-size: Theme.fs-xs;
+                        wrap: word-wrap;
                     }
                 }
             }
@@ -4935,7 +4999,7 @@ export component AppWindow inherits Window {
                     if root.batch-import-text == "" : Text {
                         x: 10px;
                         y: 8px;
-                        text: "192.168.1.108|22|root|pass@123|服务器1";
+                        text: "192.0.2.10|22|root|******|服务器1";
                         color: Theme.text-muted;
                         font-family: Theme.font-mono;
                         font-size: Theme.fs-md;

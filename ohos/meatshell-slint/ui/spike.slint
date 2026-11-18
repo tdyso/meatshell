@@ -1,0 +1,80 @@
+export component SpikeWindow inherits Window {
+    in property <string> status: "Slint UI ready";
+    in property <string> key-count-text: "0";
+    in property <string> last-key: "(none)";
+    in property <string> click-count-text: "0";
+    in property <string> pointer-pos: "(-)";
+
+    background: #0b0f17;
+    default-font-family: "HarmonyOS Sans SC";
+    default-font-size: 16px;
+
+    VerticalLayout {
+        padding: 28px;
+        spacing: 14px;
+        alignment: start;
+
+        Text {
+            text: "MeatShell";
+            color: #f0f6fc;
+            font-size: 34px;
+            font-weight: 800;
+        }
+
+        Text {
+            text: "Slint software renderer · XComponent + NativeWindow";
+            color: #8b949e;
+            font-size: 15px;
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #30363d;
+        }
+
+        Text {
+            text: "OpenHarmony PC 渲染链路验证";
+            color: #58a6ff;
+            font-size: 17px;
+        }
+
+        Rectangle {
+            background: #161b22;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #30363d;
+
+            VerticalLayout {
+                padding: 16px;
+
+                Text {
+                    text: status;
+                    color: #c9d1d9;
+                    font-size: 15px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            Text { text: "按键计数:"; color: #8b949e; }
+            Text { text: key-count-text; color: #7ee787; font-weight: 700; }
+            Text { text: last-key; color: #ffa657; }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            Text { text: "点击计数:"; color: #8b949e; }
+            Text { text: click-count-text; color: #7ee787; font-weight: 700; }
+            Text { text: "指针坐标:"; color: #8b949e; }
+            Text { text: pointer-pos; color: #d2a8ff; }
+        }
+
+        Text {
+            text: "如果看到这段中文，说明字体注册与软件渲染在真机上成功。";
+            color: #8b949e;
+            wrap: word-wrap;
+        }
+    }
+}

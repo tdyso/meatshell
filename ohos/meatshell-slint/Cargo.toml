@@ -1,0 +1,79 @@
+[package]
+name = "meatshell-slint"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+# Engine (SSH/SFTP/tunnel/config) is pulled in as an rlib so that this crate is
+# the only Rust staticlib handed to the C++ link step.
+meatshell-core = { path = "../meatshell-core" }
+slint = { version = "=1.18.1", default-features = false, features = [
+    "std",
+    "renderer-software",
+    "compat-1-2",
+    "unstable-fontique-011",
+] }
+# The software renderer's text layout is behind `shared-parley`; Slint's
+# default-features=false does not turn it on. Pull it in explicitly.
+i-slint-core = { version = "=1.18.1", default-features = false, features = [
+    "std",
+    "shared-parley",
+    "shared-swash",
+    # Runtime decoding of embedded images (app icon etc.) with the pure-Rust
+    # `image` crate; compiles fine on OHOS.
+    "image-decoders",
+    "image-default-formats",
+    # The Slint "Made with Slint" attribution widget (AboutSlint) embeds its
+    # logo as SVG. Without this feature the image decodes to nothing and the
+    # About dialog shows a blank logo, so enable SVG rasterisation.
+    "svg",
+    # `tr` lets us plug a custom Translator (see src/i18n.rs) instead of
+    # gettext: OHOS has libintl.h in the sysroot but ships no libintl.so,
+    # so the `gettext` feature would fail to link.
+    "tr",
+] }
+# Same crate i-slint-core's `tr` feature uses for the Translator trait. Only
+# the trait is needed: the default feature pulls in system gettext (libintl),
+# which OHOS does not ship and whose build script wants `xz`.
+tr = { version = "0.1", default-features = false }
+# Session ids come from a random UUID, exactly like upstream `session_callbacks`.
+uuid = { version = "1", features = ["v4"] }
+# Interactive SSH sessions (PTY shell). Same pinned versions as the engine.
+russh = "0.49"
+russh-keys = "0.49"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time", "net", "io-util"] }
+async-trait = "0.1"
+# Terminal emulation for the visible screen; same version as the engine.
+vt100 = "0.16.2"
+# Custom output-highlight rules are user-authored regular expressions; the
+# engine already compiles this crate for the same purpose.
+regex = "1"
+# Wallpaper decoding (bundled JPEGs + user-picked photos). Same version the
+# renderer already pulls in via `image-decoders`, so this is nearly free.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp"] }
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+# OHOS has no fontconfig. Upstream `parley` and `fontique` default to the
+# `system` feature, which links fontconfig on Linux/OHOS targets. The vendored
+# copies keep the font APIs but default to `std` only; fonts are registered
+# explicitly from /system/fonts at runtime.
+[patch.crates-io]
+parley = { path = "vendor/parley" }
+fontique = { path = "vendor/fontique" }
+# Upstream's vendored Slint editor patch (see ../../vendor/EDITOR_PATCH.md):
+# TextInput gains syntax-source / syntax-spans / line-number-width, which
+# editor_pane.slint requires. Must be upgraded together.
+i-slint-core = { path = "../../vendor/i-slint-core" }
+i-slint-compiler = { path = "../../vendor/i-slint-compiler" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+# Same panic strategy as the engine crate; unwind needs libunwind on OHOS.
+panic = "abort"

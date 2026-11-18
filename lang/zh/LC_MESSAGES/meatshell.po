@@ -420,8 +420,8 @@ msgstr "-R：服务器端口 → 由本机访问的目标"
 msgid "-D: local SOCKS5 proxy"
 msgstr "-D：本地 SOCKS5 代理"
 
-msgid "meatshell — a lightweight Rust + Slint SSH client by 'lil meatball'"
-msgstr "meatshell — 一个由「一坨肉」开发的轻量 Rust + Slint SSH 客户端"
+msgid "MeatShell — a lightweight Rust + Slint SSH client by 'lil meatball'"
+msgstr "MeatShell — 一个由「一坨肉」开发的轻量 Rust + Slint SSH 客户端"
 
 msgid "A lightweight and efficient Rust + Slint SSH client"
 msgstr "一个轻量、高效的 Rust + Slint SSH 客户端"
@@ -754,8 +754,8 @@ msgstr "可选，在登录提示时自动输入"
 msgid "Optional, typed at the password prompt"
 msgstr "可选，在密码提示时自动输入"
 
-msgid "MeatShell answers the device's first login and password prompts with these. Leave them blank to type them yourself."
-msgstr "MeatShell 会用这些信息自动回应设备首次出现的登录和密码提示。留空则由你手动输入。"
+msgid "khshell answers the device's first login and password prompts with these. Leave them blank to type them yourself."
+msgstr "khshell 会用这些信息自动回应设备首次出现的登录和密码提示。留空则由你手动输入。"
 
 msgid "Open"
 msgstr "打开"
