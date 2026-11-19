@@ -677,6 +677,13 @@ export component AppWindow inherits Window {
     callback delete-quick-group(string /* name */);
     in property <[TransferInfo]> transfers; // download/upload records (newest first)
     in property <[string]> about-libs;      // open-source libraries used
+    // Legal pages shown inside the About card (0 = main, 1 = privacy policy,
+    // 2 = open-source licences). Rust injects the texts so the UI does not
+    // need to know where the documents live.
+    in property <string> privacy-text;
+    in property <string> licenses-text;
+    in-out property <int> about-page: 0;
+    changed about-open => { if (!root.about-open) { root.about-page = 0; } }
     in-out property <bool> lang-en: false;  // current UI language (false = 中文)
     // Two-way binding to Theme.dark — Rust reads/writes this property and
     // Slint propagates it to every widget that references Theme colours.
@@ -4650,7 +4657,7 @@ export component AppWindow inherits Window {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             width: 520px;
-            height: 330px;
+            height: root.about-page == 0 ? 340px : 520px;
             background: Theme.popup-bg;
             border-radius: Theme.radius-lg;
             border-width: 1px;
@@ -4660,6 +4667,62 @@ export component AppWindow inherits Window {
 
             // Swallow clicks so the backdrop doesn't close when clicking inside.
             TouchArea {}
+
+            // --- Privacy policy / licence text (same card, swapped content) --
+            if root.about-page != 0 : VerticalLayout {
+                padding: 20px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: Theme.radius-sm;
+                        background: ab-back-ta.has-hover ? Theme.bg-hover : transparent;
+                        ab-back-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.about-page = 0; }
+                        }
+                        Text {
+                            text: "\u{E5C4}";
+                            font-family: "Material Icons";
+                            color: Theme.text-secondary;
+                            font-size: Theme.fs-md;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Text {
+                        text: root.about-page == 1
+                            ? (root.lang-en ? "Privacy policy" : "隐私政策")
+                            : (root.lang-en ? "Open-source licences" : "开源许可");
+                        color: Theme.text-primary;
+                        font-size: Theme.fs-lg;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                }
+
+                legal-scroll := ScrollView {
+                    vertical-stretch: 1;
+                    content-width: self.visible-width;
+                    content-height: max(self.visible-height, legal-text.preferred-height);
+                    legal-text := Text {
+                        // The card is a fixed 520px wide, so a fixed text width
+                        // keeps the wrap stable when the scroll bar appears.
+                        width: 460px;
+                        x: 0;
+                        y: 0;
+                        text: root.about-page == 1 ? root.privacy-text : root.licenses-text;
+                        color: Theme.text-secondary;
+                        font-size: Theme.fs-sm;
+                        wrap: word-wrap;
+                        vertical-alignment: top;
+                    }
+                }
+            }
 
             // Close (×) in the top-right corner.
             Rectangle {
@@ -4677,7 +4740,7 @@ export component AppWindow inherits Window {
                        horizontal-alignment: center; vertical-alignment: center; }
             }
 
-            HorizontalLayout {
+            if root.about-page == 0 : HorizontalLayout {
                 padding: 24px;
                 spacing: 20px;
 
@@ -4755,6 +4818,48 @@ export component AppWindow inherits Window {
                         text: "MIT / Apache-2.0";
                         color: Theme.text-muted;
                         font-size: Theme.fs-xs;
+                    }
+
+                    // Legal pages (privacy policy / bundled licences) are shown
+                    // in this same card so the compliance documents are reachable
+                    // without a network connection or an external viewer.
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 14px;
+                        Rectangle {
+                            border-radius: Theme.radius-sm;
+                            background: pp-ta.has-hover ? Theme.bg-hover : transparent;
+                            HorizontalLayout {
+                                padding-left: 4px; padding-right: 4px;
+                                Text {
+                                    text: root.lang-en ? "Privacy policy" : "隐私政策";
+                                    color: Theme.accent;
+                                    font-size: Theme.fs-xs;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            pp-ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.about-page = 1; }
+                            }
+                        }
+                        Rectangle {
+                            border-radius: Theme.radius-sm;
+                            background: lic-ta.has-hover ? Theme.bg-hover : transparent;
+                            HorizontalLayout {
+                                padding-left: 4px; padding-right: 4px;
+                                Text {
+                                    text: root.lang-en ? "Open-source licences" : "开源许可";
+                                    color: Theme.accent;
+                                    font-size: Theme.fs-xs;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            lic-ta := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.about-page = 2; }
+                            }
+                        }
                     }
 
                     // Required attribution for the Slint Royalty-free 2.0 licence:

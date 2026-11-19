@@ -125,7 +125,7 @@ crate::quick_commands::register(ui, store.clone(), send);
   `remove_command_history()`。
 - 落盘位置与既有会话一致：`MEATSHELL_DATA_DIR`（HAP `filesDir`）下的
   `sessions.json`（ConfigStore 的实际文件名，实测路径
-  `/data/app/el2/100/base/com.kaihong.khmeatshell/haps/entry/files/sessions.json`）。
+  `/data/app/el2/100/base/com.tdyso.khshell/haps/entry/files/sessions.json`）。
 - 分组折叠状态只存内存（`Rc<RefCell<HashSet<String>>>`），重启回到全折叠，
   与上游注释一致。
 
@@ -556,7 +556,7 @@ OHOS 渲染路径，并接线 4 个设置回调。
 
 # 增量：系统文件选择器上传（Upload picker）
 
-状态：已实施并真机验证（2026-11-15，1366×768 / bundle com.kaihong.khmeatshell）
+状态：已实施并真机验证（2026-11-15，1366×768 / bundle com.tdyso.khshell）
 范围：只改 `ohos/meatshell-slint/src/` 与 ArkTS 宿主 `khmeatshell/entry/src/main/`；
 上游 `src/`、`ui/` 零改动。
 
@@ -863,7 +863,7 @@ cd ~/DevEcoStudioProjects/khmeatshell && bash deploy.sh   # x86_64 + aarch64
 测试环境（每次验收前重置，否则坐标与滚轮都不可用）：
 
 1. `hdc tconn 192.0.2.145:10178`；`snapshot_display` 截图为 1366×768。
-2. `ui_scale` 必须为 100：`/data/app/el2/100/base/com.kaihong.khmeatshell/haps/
+2. `ui_scale` 必须为 100：`/data/app/el2/100/base/com.tdyso.khshell/haps/
    entry/files/sessions.json` 内 `ui_scale` 置 100，`hdc file send` 覆盖后重启应用。
 3. 取得 (0,0) 客户区偏移：先关闭所有对话框（ModalLayer 会吞掉标题栏点击），
    再点应用自绘最大化按钮（屏幕 `1262,19`），`hidumper -s WindowManagerService
@@ -1017,7 +1017,7 @@ ArkTS 宿主 `SlintSpike.ets:846-862` 把触摸 Down/Move/Up 全部转成
 ### 24.6 构建与验证
 
 - `cargo check --release --target x86_64-unknown-linux-ohos`（`ohos/meatshell-slint`）
-- `bash deploy.sh` → `com.kaihong.khmeatshell`
+- `bash deploy.sh` → `com.tdyso.khshell`
 - 真机按 S1–S7 执行；截图与 hilog（`touch Down/Move/Up`、Slint 错误）留档；
   IME 输入仍按 §23.5.1 定式。
 
@@ -1112,7 +1112,7 @@ ArkTS 宿主 `SlintSpike.ets:846-862` 把触摸 Down/Move/Up 全部转成
   结论：本机不可用权限方案，已回滚权限声明、字符串与 profile ACL。
 - 无权限时 `getDataSync()` 返回空 PasteData，`getPrimaryText()` 为
   `undefined`；直接取 `.length` 会让 ArkTS 崩溃（实测 jscrash 日志
-  `/data/log/faultlog/faultlogger/jscrash-com.kaihong.khmeatshell-*.log`）。
+  `/data/log/faultlog/faultlogger/jscrash-com.tdyso.khshell-*.log`）。
 - `uitest uiInput drag` 实际是长按（Down 保持 ~1.5 s，无 Move），会先触发
   长按菜单；要产生 Move 必须用 `uitest uiInput fling x y x y v step`。
   `uinput -M -m` 不接受负增量（`Coordinate value must be greater or equal than 0`）。
@@ -1444,11 +1444,11 @@ ArkTS 宿主 `SlintSpike.ets:846-862` 把触摸 Down/Move/Up 全部转成
 
 | 项 | 值 |
 | --- | --- |
-| vendor | `kaihong`（原 `example`，与 bundleName `com.kaihong.khmeatshell` 一致） |
+| vendor | `tdyso`（与 bundleName `com.tdyso.khshell` 一致） |
 | versionName / Code | `0.8.1` / `1000000`，与 `ohos_app.rs` 的 `set_app_version("0.8.1")` 一致 |
-| 名称 | `MeatShell`（`AppScope` `app_name`、ability label、窗口 title、关于页） |
+| 名称 | `khshell`（`AppScope` `app_name`、ability label、窗口 title、关于页） |
 | 图标 | 分层图标（前景 1024 透明安全区 0.88、背景 1024 全出血）+ `startIcon` 512 |
-| Slint 署名 | 关于页 `Made with Slint` + `Slint (Royalty-free 2.0)`，满足 Royalty-free 2.0 的署名要求 |
+| Slint 署名 | 关于页内嵌官方 `AboutSlint` 组件，满足 Royalty-free 2.0 的署名要求 |
 | 第三方许可 | 关于页一行列出 Twemoji (CC BY 4.0)、Material Icons (Apache 2.0)、Cascadia Mono (OFL 1.1) |
 | ABI | `x86_64` 与 `arm64-v8a` 双库；后者随包携带 `libc++_shared.so`、`libtime_service_ndk.so` |
 

@@ -417,6 +417,20 @@ impl UiState {
         // is rather than the screenshot's.
         ui.set_app_version(SharedString::from("0.8.1"));
 
+        // Compliance pages shown inside the About card. The HAP ships the same
+        // documents as rawfiles, but embedding them here keeps the in-app view
+        // independent of the resource manager and works on every renderer.
+        ui.set_privacy_text(SharedString::from(include_str!("../../../docs/PRIVACY.md")));
+        ui.set_licenses_text(SharedString::from(concat!(
+            include_str!("../../../LICENSE"),
+            "\n\n",
+            include_str!("../../../LICENSE-APACHE"),
+            "\n\n",
+            include_str!("../../../NOTICE"),
+            "\n\n",
+            include_str!("../../../THIRD_PARTY_NOTICES.md"),
+        )));
+
         // Saved appearance first: theme, fonts, UI scale and the interface
         // toggles must be in place before the first frame. The dock layout
         // below still owns the panel geometry.

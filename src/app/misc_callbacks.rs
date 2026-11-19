@@ -168,4 +168,22 @@ pub(super) fn set_about_libraries(ctx: &WinCtx) {
         .collect();
         window.set_about_libs(ModelRc::from(Rc::new(VecModel::from(libs))));
     }
+
+    // Compliance pages inside the About card. The documents are embedded at
+    // build time so they are reachable without a browser or a second window.
+    window.set_privacy_text(
+        include_str!("../../docs/PRIVACY.md").into(),
+    );
+    window.set_licenses_text(
+        concat!(
+            include_str!("../../LICENSE"),
+            "\n\n",
+            include_str!("../../LICENSE-APACHE"),
+            "\n\n",
+            include_str!("../../NOTICE"),
+            "\n\n",
+            include_str!("../../THIRD_PARTY_NOTICES.md"),
+        )
+        .into(),
+    );
 }
